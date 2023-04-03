@@ -41,9 +41,8 @@ func getPricesGT(price float64) []Product {
 	return prices
 }
 
-func main() {
-
-	fileJSON, err := os.Open("products.json")
+func createDatabase(path string) {
+	fileJSON, err := os.Open(path)
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +52,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
 
+func main() {
+
+	createDatabase("products.json")
 	router := gin.Default() //crear router
 
 	router.GET("/ping", func(c *gin.Context) { //endpint Handler
