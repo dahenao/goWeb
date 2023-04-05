@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,10 +37,20 @@ func (p *Product) validateCode() error {
 
 	for _, v := range Products {
 		if v.Code_value == p.Code_value {
-			fmt.Errorf("Invalid product code ")
+			return fmt.Errorf("Invalid product code ")
 		}
 
 	}
+	return nil
+}
+
+func (p *Product) validateDate() error {
+
+	_, err := time.Parse("03/04/2023", p.Expiration)
+	if err != nil {
+		return fmt.Errorf("Invalid Date format")
+	}
+
 	return nil
 }
 
