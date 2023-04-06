@@ -2,8 +2,10 @@ package products
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dahenao/goWeb/Package_Oriented_Design/internal/domain"
+	"github.com/dahenao/goWeb/Package_Oriented_Design/pkg/store"
 )
 
 var (
@@ -21,14 +23,14 @@ type Repository interface {
 }
 
 type Local_slice_DB struct {
-	data   []domain.Product
-	lastId int
+	Storage store.Store
 }
 
 func (db *Local_slice_DB) GetAll() (result []domain.Product, err error) { //al estar declarado con nombre en variable de retorno toma valor por defecto
-
-	if len(db.data) > 0 {
-		result = db.data
+	result, err = db.Storage.GetAll()
+	fmt.Println(len(result))
+	if len(result) > 0 {
+		return
 	} else {
 		err = ErrProductNotFound
 	}
@@ -37,47 +39,22 @@ func (db *Local_slice_DB) GetAll() (result []domain.Product, err error) { //al e
 
 func (db *Local_slice_DB) Create(pr *domain.Product) (err error) {
 
-	pr.Id = db.lastId + 1
-	db.data = append(db.data, *pr)
+	err = db.Storage.Create(pr) //como en el storage tambien recibe el puntero no se necesita desreferenciar como en el caso del uodate
 
-	db.lastId++
 	return
 }
 
 func (db *Local_slice_DB) Update(index int, pr *domain.Product) (err error) {
 	pr.Id = index //asignamos el id al producto completo a actualizar
-
-	for i, prod := range db.data {
-		if pr.Id == prod.Id { //si encuentra el producto con el id
-			db.data[i] = *pr //actualiza en la posicion con el puntero de producto que viene desde el handler
-			return           //sale del ciclo
-		}
-	}
-
-	return ErrProductNotFound // si no encuentra producto retorna error
+	return db.Storage.Update(index, *pr)
 }
-
 func (db *Local_slice_DB) GetProductByID(id int) (prod domain.Product, err error) {
 
-	for _, p := range db.data {
-		if id == p.Id {
-			prod = p
-			return
-		}
-	}
-	err = ErrProductNotFound
-	return
+	return db.Storage.GetProductByID(id)
 }
 
 func (db *Local_slice_DB) Delete(id int) (err error) {
 
-	for i, p := range db.data {
-		if id == p.Id {
-			db.data = append(db.data[:i], db.data[i+1:]...)
-			return
-		}
-	}
-	err = ErrProductNotFound
-	return
+	return db.Storage.Delete(id)
 
 }

@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"github.com/dahenao/goWeb/Package_Oriented_Design/internal/products"
+	"github.com/dahenao/goWeb/Package_Oriented_Design/pkg/store"
 	"github.com/gin-gonic/gin"
 )
 
 type Router struct {
-	Engine *gin.Engine
+	Engine  *gin.Engine
+	Storage store.Store
 }
 
 func (router *Router) Setup() {
@@ -17,7 +19,8 @@ func (router *Router) Setup() {
 }
 
 func (router *Router) SetProductsRouter() {
-	repository := &products.Local_slice_DB{}
+	storage := router.Storage
+	repository := &products.Local_slice_DB{Storage: storage}
 
 	service := products.ServiceDefault{
 		BD: repository,

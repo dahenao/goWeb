@@ -1,0 +1,43 @@
+definitions:
+  domain.Product:
+    properties:
+      code_value:
+        type: string
+      expiration:
+        type: string
+      id:
+        type: integer
+      is_published:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      quantity:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /products:
+    post:
+      description: Create a new product in repository
+      parameters:
+      - description: token
+        in: header
+        name: token
+        required: true
+        type: string
+      - description: Product
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Product'
+      produces:
+      - application/json
+      responses: {}
+      summary: Create a new product
+      tags:
+      - products
+swagger: "2.0"
