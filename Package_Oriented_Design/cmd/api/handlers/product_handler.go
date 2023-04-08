@@ -38,8 +38,18 @@ func (request RequestProduct) ToDomain() domain.Product {
 		Price:        request.Price}
 }
 
-func tokenValidate(token string) bool {
-	return os.Getenv("TOKEN") == token
+func TokenMiddlewareValidate() gin.HandlerFunc {
+	RequiredToken := os.Getenv("TOKEN")
+
+	return func(ctx *gin.Context) {
+		Token := ctx.GetHeader("token")
+		if RequiredToken != Token {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token from middleware",
+				"required": RequiredToken, "token": Token})
+			return
+		}
+		ctx.Next()
+	}
 }
 
 type ProductHandler struct {
@@ -57,10 +67,6 @@ type ProductHandler struct {
 func (handler *ProductHandler) Create() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		if !tokenValidate(ctx.GetHeader("token")) {
-			ctx.JSON(http.StatusUnauthorized, ErrInvalidToken.Error())
-			return
-		}
 		var request RequestProduct //creamos variable de tipo request product
 
 		if err := ctx.ShouldBindJSON(&request); err != nil { //recibimos el body y lo codificamos a json en la variable creada
@@ -89,10 +95,7 @@ func (handler *ProductHandler) Create() gin.HandlerFunc {
 
 func (handler *ProductHandler) GetAll() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if !tokenValidate(ctx.GetHeader("token")) {
-			ctx.JSON(http.StatusUnauthorized, ErrInvalidToken.Error())
-			return
-		}
+
 		// Obtener los productos.
 		products, err := handler.Service.GetAll()
 		if err != nil {
@@ -109,17 +112,12 @@ func (handler *ProductHandler) GetAll() gin.HandlerFunc {
 
 func (handler *ProductHandler) Update() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if !tokenValidate(ctx.GetHeader("token")) {
-			ctx.JSON(http.StatusUnauthorized, ErrInvalidToken.Error())
 
-			return
-		}
 		var request RequestProduct                  //creamos variable de tipo request product
 		index, err := strconv.Atoi(ctx.Param("id")) //convertimos el parametro a entero
 		if err != nil {
-			//ctx.JSON(400, ErrBadIndex)
-
 			web.ErrorResp(ctx, ErrBadIndex, http.StatusBadRequest)
+			return
 		}
 		if err := ctx.ShouldBindJSON(&request); err != nil { //recibimos el body y lo codificamos a json en la variable creada
 			ctx.JSON(400, err)
@@ -129,9 +127,13 @@ func (handler *ProductHandler) Update() gin.HandlerFunc {
 
 		//enviamos el producto a la capa de servicio
 		if err := handler.Service.Update(index, &productToCreate); err != nil {
-			//errors.Is(err, products.ErrProductAlreadyExists) //ErrProductAlreadyExists es una variable global en products
-			//ctx.JSON(400, err.Error())                       //retorna el error que ya fue discriminado
-			web.ErrorResp(ctx, products.ErrProductAlreadyExists, http.StatusBadRequest)
+			switch err {
+			case products.ErrProductNotFound:
+				web.ErrorResp(ctx, err, http.StatusNotFound)
+			default:
+				web.ErrorResp(ctx, products.ErrInternalServer, http.StatusBadRequest)
+			}
+
 			return
 
 		}
@@ -143,19 +145,23 @@ func (handler *ProductHandler) Update() gin.HandlerFunc {
 
 func (handler *ProductHandler) UpdatePartial() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if !tokenValidate(ctx.GetHeader("token")) {
-			ctx.JSON(http.StatusUnauthorized, ErrInvalidToken.Error())
-			return
-		}
+
 		//creamos variable de tipo request product
 		index, err := strconv.Atoi(ctx.Param("id")) //convertimos el parametro a entero
 		if err != nil {
-			ctx.JSON(400, ErrBadIndex)
+			web.ErrorResp(ctx, ErrBadIndex, http.StatusBadRequest)
+			return
 		}
 
 		prod, err := handler.Service.GetProductByID(index)
 		if err != nil {
-			ctx.JSON(400, err)
+			switch err {
+			case products.ErrProductNotFound:
+				web.ErrorResp(ctx, err, http.StatusNotFound)
+			default:
+				web.ErrorResp(ctx, products.ErrInternalServer, http.StatusBadRequest)
+			}
+			return
 		}
 
 		if err := ctx.ShouldBindJSON(&prod); err != nil { //recibimos el body y lo codificamos a el producto consultado
@@ -177,46 +183,56 @@ func (handler *ProductHandler) UpdatePartial() gin.HandlerFunc {
 
 func (handler *ProductHandler) getProductByID() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if !tokenValidate(ctx.GetHeader("token")) {
-			ctx.JSON(http.StatusUnauthorized, ErrInvalidToken.Error())
-			return
-		}
+
 		// Obtener los productos.
 		index, err := strconv.Atoi(ctx.Param("id"))
 		if err != nil {
-			ctx.JSON(400, err)
+			web.ErrorResp(ctx, ErrBadIndex, http.StatusBadRequest)
+			return
 		}
 		product, err := handler.Service.GetProductByID(index)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, "an internal error has occurred")
+			switch err {
+			case products.ErrProductNotFound:
+				web.ErrorResp(ctx, err, http.StatusNotFound)
+			default:
+				web.ErrorResp(ctx, products.ErrInternalServer, http.StatusBadRequest)
+			}
 			return
 		}
 
 		// Devolver la respuesta.
-		ctx.JSON(http.StatusOK, product)
+		//ctx.JSON(http.StatusOK, product)
+		web.OkResp(ctx, http.StatusOK, product)
 	}
 }
 
 func (handler *ProductHandler) Delete() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if !tokenValidate(ctx.GetHeader("token")) {
-			ctx.JSON(http.StatusUnauthorized, ErrInvalidToken.Error())
-			return
-		}
+
 		// Obtener los productos.
 		index, err := strconv.Atoi(ctx.Param("id"))
 		if err != nil {
-			ctx.JSON(400, ErrBadIndex)
+			web.ErrorResp(ctx, ErrBadIndex, http.StatusBadRequest)
+			return
 		}
 		err = handler.Service.Delete(index)
 		if err != nil {
-			web.ErrorResp(ctx, errors.New("an internal error has occurred"), http.StatusInternalServerError)
+			switch err {
+			case products.ErrProductNotFound:
+				//ctx.JSON(http.StatusBadRequest, err)
+				web.ErrorResp(ctx, err, http.StatusNotFound)
+			default:
+				//ctx.JSON(http.StatusInternalServerError,products.ErrInternalServer)
+				web.ErrorResp(ctx, products.ErrInternalServer, http.StatusBadRequest)
+			}
+
 			//ctx.JSON(http.StatusInternalServerError, "an internal error has occurred")
 			return
 		}
 
 		// Devolver la respuesta.
 		//ctx.JSON(http.StatusOK, "deleted product")
-		web.OkResp(ctx, http.StatusOK, "deleted product")
+		web.OkResp(ctx, http.StatusNoContent, "")
 	}
 }

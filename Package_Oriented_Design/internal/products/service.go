@@ -1,8 +1,6 @@
 package products
 
 import (
-	"errors"
-
 	"github.com/dahenao/goWeb/Package_Oriented_Design/internal/domain"
 )
 
@@ -16,6 +14,10 @@ type Service interface {
 
 type ServiceDefault struct {
 	BD Repository //instanciar repositorio llamando la interface????
+}
+
+func NewService(repo Repository) Service {
+	return &ServiceDefault{BD: repo}
 }
 
 func (s ServiceDefault) Create(product *domain.Product) (err error) {
@@ -40,7 +42,12 @@ func (s ServiceDefault) GetProductByID(id int) (prod domain.Product, err error) 
 
 	prod, err = s.BD.GetProductByID(id)
 	if err != nil {
-
+		switch err {
+		case ErrProductNotFound:
+			return prod, err
+		default:
+			return prod, ErrInternalServer
+		}
 	}
 	return
 }
@@ -49,7 +56,12 @@ func (s ServiceDefault) Update(index int, product *domain.Product) (err error) {
 
 	err = s.BD.Update(index, product)
 	if err != nil {
-
+		switch err {
+		case ErrProductNotFound:
+			return err
+		default:
+			return ErrInternalServer
+		}
 	}
 	return
 }
@@ -57,11 +69,13 @@ func (s ServiceDefault) Update(index int, product *domain.Product) (err error) {
 func (s ServiceDefault) Delete(id int) (err error) {
 
 	if err = s.BD.Delete(id); err != nil {
-		if errors.Is(err, ErrProductNotFound) {
-			return
-		} else {
-			err = ErrInternalServer
+		switch err {
+		case ErrProductNotFound:
+			return err
+		default:
+			return ErrInternalServer
 		}
 	}
+
 	return
 }

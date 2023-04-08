@@ -26,6 +26,10 @@ type Local_slice_DB struct {
 	Storage store.Store
 }
 
+func NewRepository(storage store.Store) Repository {
+	return &Local_slice_DB{Storage: storage}
+}
+
 func (db *Local_slice_DB) GetAll() (result []domain.Product, err error) { //al estar declarado con nombre en variable de retorno toma valor por defecto
 	result, err = db.Storage.GetAll()
 	fmt.Println(len(result))
@@ -46,15 +50,42 @@ func (db *Local_slice_DB) Create(pr *domain.Product) (err error) {
 
 func (db *Local_slice_DB) Update(index int, pr *domain.Product) (err error) {
 	pr.Id = index //asignamos el id al producto completo a actualizar
-	return db.Storage.Update(index, *pr)
+	err = db.Storage.Update(index, *pr)
+
+	if err != nil {
+		switch err {
+		case store.ErrProductNotFound:
+			return ErrProductNotFound
+		default:
+			return ErrInternalServer
+		}
+	}
+	return
 }
 func (db *Local_slice_DB) GetProductByID(id int) (prod domain.Product, err error) {
 
-	return db.Storage.GetProductByID(id)
+	prod, err = db.Storage.GetProductByID(id)
+	if err != nil {
+		switch err {
+		case store.ErrProductNotFound:
+			return prod, ErrProductNotFound
+		default:
+			return prod, ErrInternalServer
+		}
+	}
+	return
 }
 
 func (db *Local_slice_DB) Delete(id int) (err error) {
 
-	return db.Storage.Delete(id)
-
+	err = db.Storage.Delete(id)
+	if err != nil {
+		switch err {
+		case store.ErrProductNotFound:
+			return ErrProductNotFound
+		default:
+			return ErrInternalServer
+		}
+	}
+	return
 }

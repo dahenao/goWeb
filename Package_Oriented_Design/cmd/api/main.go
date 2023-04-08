@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	godotenv.Load("./cmd/api/.env")
+	godotenv.Load("./cmd/api/.env") ///Users/dahenao/Bootcamp/goWeb/goWeb/Package_Oriented_Design/cmd/api/.env
 	// Generar un nuevo router en Gin.
 	storeDb := store.NewStore("../products.json")
 

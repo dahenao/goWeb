@@ -31,11 +31,14 @@ func (router *Router) SetProductsRouter() {
 	}
 
 	group := router.Engine.Group("/products")
-	group.POST("", handler.Create())
-	group.GET("", handler.GetAll())
-	group.GET(":id", handler.getProductByID())
-	group.PUT(":id", handler.Update())
-	group.PATCH(":id", handler.UpdatePartial())
-	group.DELETE(":id", handler.Delete())
+	{
+		group.Use(TokenMiddlewareValidate())
+		group.POST("", handler.Create())
+		group.GET("", handler.GetAll())
+		group.GET(":id", handler.getProductByID())
+		group.PUT(":id", handler.Update())
+		group.PATCH(":id", handler.UpdatePartial())
+		group.DELETE(":id", handler.Delete())
+	}
 
 }
